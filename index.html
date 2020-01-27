@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>SEAGULL</title>
+
+		<meta charset="utf-8">
+		<meta name="msapplication-tap-highlight" content="no"/>
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		
+		<style>
+
+			body {
+
+				color: #000000;
+				font-family: sans-serif;
+				font-size: 16px;
+				text-align: center;
+				background: #1781a4;
+				margin: 0px;
+				overflow: hidden;
+
+			}
+
+			#infos {
+
+				font-size: 2.0vh;
+				text-align: center;
+				color: #ffffff;
+				position: fixed;
+				bottom: 8%;
+				left: 8%;
+				opacity: 0.6;
+				-webkit-touch-callout: none; /* iOS Safari */
+    			-webkit-user-select: none; /* Safari */
+     			-khtml-user-select: none; /* Konqueror HTML */
+       			-moz-user-select: none; /* Firefox */
+        		-ms-user-select: none; /* Internet Explorer/Edge */
+            	user-select: none; /* Non-prefixed version, currently
+                                  supported by Chrome and Opera */
+			}
+
+			a:link {
+
+			  	text-decoration: none;
+			  	color: #ffffff;
+
+			}
+
+			a:visited {
+
+			  	text-decoration: none;
+			  	color: #ffffff;
+
+			}
+
+			a:hover {
+
+			  	text-decoration: underline;
+			  	color: #ffffff;
+
+			}
+
+			a:active {
+
+			  	text-decoration: underline;
+			  	color: #ffffff;
+
+			}
+
+			*:focus {
+
+    			outline: none;
+
+			}
+
+		</style>
+	</head>
+	<body>
+
+		<div id="infos"><a target="_blank" href="http://arnaudsvart.com/seagull/">Infos</a>
+		</div>		
+		
+		<script type="text/javascript" src="js/three.min.js"></script>
+		<script type="text/javascript" src="js/FBXLoader.js"></script>
+		<script type="text/javascript" src="js/inflate.min.js"></script>
+		<script type="text/javascript" src="js/WebGL.js"></script>
+
+		<script>
+
+			var camera, scene, renderer;
+
+			var mouse = new THREE.Vector2();
+
+			var center = new THREE.Vector3();
+
+			var growingRandom = 0;
+			var growingNumber = 0;
+
+			var sounds = new Object();
+
+			var sceneIsready = false;
+
+			var raycaster = new THREE.Raycaster();
+
+			var infosIsClicked = false;
+
+			seagull = {
+
+				sitPos: new THREE.Object3D(),
+				lookHelper: new THREE.Object3D(),
+				wingMove: false,
+				wingTime: 0,
+				state: "fly",
+				sitTime: 0,
+				sitDistance: 100,
+				flyingTime: 0,
+				lookAwayTime: 0
+
+			}
+
+			balise = new Object();
+
+			// check if WebGL available
+
+			if ( THREE.WEBGL.isWebGLAvailable() === false ) {
+
+				document.body.appendChild( THREE.WEBGL.getWebGLErrorMessage() );
+				
+			}
+
+			init();
+			createScene();
+			animate();
+
+			function init() {
+
+				// camera
+
+				camera = new THREE.PerspectiveCamera( 28, window.innerWidth / window.innerHeight, 0.1, 30000 );
+				camera.position.set( 50, 72, 50 );
+				camera.lookAt( center );
+
+				camera.targetCam = new THREE.Vector3( 0, 0, 0 );
+
+				camera.userData.time = 0;
+
+				// scene and lights
+
+				scene = new THREE.Scene();
+				scene.background = new THREE.Color( 0x1781a4 );
+
+				var light = new THREE.HemisphereLight( 0xffffff, 0x888888, 1 );
+				light.groundColor.setHex( 0x888888 ).convertSRGBToLinear();
+				scene.add( light );
+
+				var directionalLight = new THREE.DirectionalLight( 0xffffff, 0.6 );
+				directionalLight.color.setHex( 0xffffff ).convertSRGBToLinear();
+				directionalLight.target = new THREE.Object3D();
+				directionalLight.target.position.set( -400, -400, 200 );
+				scene.add( directionalLight, directionalLight.target );
+
+				// sounds
+
+				sounds.listener = new THREE.AudioListener();
+
+				camera.add( sounds.listener );
+
+				// controls
+
+				function onMouseMove( event ) {
+
+					mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+					mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+				}
+
+				var handleStart = function ( event ) {
+
+					mouse.x = -1 + ( event.touches[0].clientX / window.innerWidth ) * 2;
+					mouse.y = 1 - ( event.touches[0].clientY / window.innerHeight ) * 2;
+
+					event.preventDefault();
+					event.stopPropagation();
+
+				};
+
+				var onClick = function ( event ) {
+
+					event.preventDefault();
+					raycastFloor();
+					event.stopPropagation();
+
+				};
+
+				var onClickInfos = function ( event ) {
+
+					infosIsClicked = true;
+					event.stopPropagation();
+
+				};
+
+				// renderer
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				document.body.appendChild( renderer.domElement );
+				renderer.autoClear = false;
+
+				// linear workflow
+
+				renderer.outputEncoding = THREE.sRGBEncoding;
+
+				// listeners
+
+				window.addEventListener( "resize", onWindowResize, false );
+				document.getElementById( "infos" ).addEventListener( "click", onClickInfos, false );
+				document.addEventListener( "click", onClick, false );
+				window.addEventListener( "mousemove", onMouseMove, false );
+				
+			}
+
+			function loadMeshes() {
+
+				var manager = new THREE.LoadingManager();
+
+				manager.onLoad = function () {
+
+					sceneIsready = true;
+
+				};
+
+				var loader = new THREE.FBXLoader( manager );
+
+				// seagull
+
+				var seagullTexture = new THREE.TextureLoader().load( "assets/seagulltexture.jpg" );
+				seagullTexture.encoding = THREE.sRGBEncoding;
+
+				var seagullMaterial = new THREE.MeshLambertMaterial( { map: seagullTexture, skinning: true } );
+
+				loader.load( "assets/seagull.fbx", function ( object ) {
+					
+					object.traverse( function ( child ) {
+
+						if ( child.isMesh ) {
+
+							child.material = seagullMaterial;
+
+						}
+
+						if ( child.name === "MAIN" ) {
+
+							seagull.main = child;
+
+						}
+
+						if ( child.name === "HEAD" ) {
+
+							seagull.head = child;
+
+						}
+
+						if ( child.name === "MAIN" ) {
+
+							seagull.main = child;
+
+						}
+
+						if ( child.name === "TAIL" ) {
+
+							seagull.tail = child;
+
+						}
+
+						if ( child.name === "WINGLEFT" ) {
+
+							seagull.wingLeft = child;
+
+						}
+
+						if ( child.name === "WINGLEFTEND" ) {
+
+							seagull.wingLeftEnd = child;
+
+						}
+
+						if ( child.name === "WINGRIGHT" ) {
+
+							seagull.wingRight = child;
+
+						}
+
+						if ( child.name === "WINGRIGHTEND" ) {
+
+							seagull.wingRightEnd = child;
+
+						}
+
+					} );
+
+					seagull.mesh = object;
+
+					seagull.mesh.scale.set( 0.1, 0.1, 0.1 );
+
+					// random start position
+
+					seagull.mesh.position.set( Math.sin( THREE.Math.randFloat( 0, Math.PI * 2 ) ) * 28, 12, Math.cos( THREE.Math.randFloat( 0, Math.PI * 2 ) ) * 28 );
+
+					scene.add( seagull.mesh );
+
+				});
+
+				// balise
+
+				var baliseMaterial = new THREE.MeshStandardMaterial( { roughness: 0.6, metalness: 0.4 } );
+				baliseMaterial.color.setHex( 0xec3d35 ).convertSRGBToLinear();
+
+				loader.load( "assets/balise.fbx", function ( object ) {
+					
+					object.traverse( function ( child ) {
+
+						if ( child.isMesh ) {
+
+							child.material = baliseMaterial;
+
+						}
+
+					} );
+
+					balise.mesh = object;
+
+					balise.mesh.scale.set( 0.02, 0.02, 0.02 );
+
+					scene.add( balise.mesh );
+
+				});
+
+			}
+
+			function createWaters() {
+
+				// balise circular waves
+
+				var geometry = new THREE.RingGeometry( 4, 4.8, 24, 1 );
+				geometry.rotateX( -Math.PI/2 );
+
+				var wave1Material = new THREE.MeshBasicMaterial( { color: 0xffffff, transparent: true, opacity: 0 } );
+				wave1Material.color.setHex( 0xffffff ).convertSRGBToLinear();
+
+				var wave2Material = new THREE.MeshBasicMaterial( { color: 0xffffff, transparent: true, opacity: 0 } );
+				wave2Material.color.setHex( 0xffffff ).convertSRGBToLinear();
+
+				balise.wave1 = new THREE.Mesh( geometry, wave1Material );
+				balise.wave1.position.y = -0.1;
+				scene.add( balise.wave1 );
+
+				balise.wave2 = new THREE.Mesh( geometry, wave2Material );
+				balise.wave2.position.y = -0.1;
+				balise.wave2.scale.x = 0.5;
+				balise.wave2.scale.z = 0.5;
+				scene.add( balise.wave2 );
+
+				// transparent water around balise
+
+				var geometry = new THREE.PlaneGeometry( 10, 10 );
+				geometry.rotateX( -Math.PI/2 );
+				var material = new THREE.MeshBasicMaterial( { color: 0x1781a4, transparent: true, opacity: 0.6 } );
+				material.color.setHex( 0x1781a4 ).convertSRGBToLinear();
+				balise.water = new THREE.Mesh( geometry, material );
+				scene.add( balise.water );
+
+				// huge sea floor to raycast
+
+				var geometry = new THREE.PlaneGeometry( 1000, 1000 );
+				geometry.rotateX( -Math.PI/2 );
+				var material = new THREE.MeshBasicMaterial( { color: 0xffffff, visible: false } );
+				seagull.seaFloor = new THREE.Mesh( geometry, material );
+				scene.add( seagull.seaFloor );
+
+				// sun waves
+
+				balise.sunWaves = [];
+
+				var numberOfWaves = 12;
+
+				var geometry = new THREE.CircleGeometry( 1.6, 6 );
+
+				geometry.rotateX( THREE.Math.degToRad( -90 ) );
+
+				for ( var i = 0; i < numberOfWaves; i++ ) {
+					
+					geometry.rotateY( THREE.Math.degToRad( Math.random() * 360 ) );
+
+					geometry.translate( 0, 0.05, 0 );
+
+					var material = new THREE.MeshBasicMaterial( { color: 0xffffff, transparent: true, opacity: THREE.Math.randFloat( 0.1, 0.28 ) } );
+					material.color.setHex( 0xffffff ).convertSRGBToLinear();
+
+					var wave = new THREE.Mesh( geometry, material );
+
+					wave.position.x = Math.cos( THREE.Math.randFloat( 0, Math.PI * 2 ) ) * 20;
+					wave.position.z = Math.sin( THREE.Math.randFloat( 0, Math.PI * 2 ) ) * 20;
+
+					var randomScale = THREE.Math.randFloat( 0.2, 1 );
+
+					wave.scale.set( randomScale, randomScale, randomScale );
+
+					wave.renderOrder = 10 + i; // to avoid bad intersections
+
+					wave.time = Math.random();
+
+					balise.sunWaves.push( wave );
+
+					scene.add( wave );
+
+				}
+
+			}
+
+			function createSounds() {
+
+				sounds.ambientSound = new THREE.Audio( sounds.listener );
+
+				sounds.gull1 = new THREE.Audio( sounds.listener );
+				sounds.gull2 = new THREE.Audio( sounds.listener );
+
+				sounds.balise = new THREE.Audio( sounds.listener );
+
+				var audioLoader = new THREE.AudioLoader();
+
+				audioLoader.load( 'sounds/seagull1.mp3', function( buffer ) {
+
+					sounds.gull1.setBuffer( buffer );
+					sounds.gull1.setVolume( 0.54 );
+
+				});
+
+				audioLoader.load( 'sounds/seagull2.mp3', function( buffer ) {
+
+					sounds.gull2.setBuffer( buffer );
+					sounds.gull2.setVolume( 0.54 );
+
+				});
+
+				audioLoader.load( 'sounds/ambiance.mp3', function( buffer ) {
+
+					sounds.ambientSound.setBuffer( buffer );
+					sounds.ambientSound.setLoop( true );
+					sounds.ambientSound.setVolume( 0.4 );
+					sounds.ambientSound.play();
+
+				});
+
+				audioLoader.load( 'sounds/balise.mp3', function( buffer ) {
+
+					sounds.balise.setBuffer( buffer );
+					sounds.balise.setVolume( 0.32 );
+
+				});
+
+			}
+			
+			function createScene() {
+
+				loadMeshes();
+				createWaters();
+				createSounds();
+
+			}
+
+			function checkSeagullState() {
+
+				seagull.sitDistance = seagull.mesh.position.distanceTo( seagull.sitPos.position );
+
+				if ( seagull.sitDistance < 1 && seagull.state === "fly" && seagull.wingMove === false ) {
+
+					seagull.state = "sit";
+
+				}
+
+				if ( seagull.state === "fly" ) {
+
+					fly();
+
+				} else if ( seagull.state === "sit" ) {
+
+					sit();
+					seagull.flyingTime = 0;
+					seagull.lookAwayTime = 0;
+
+				} else if ( seagull.state === "wakeup" ) {
+
+					wakeUp();
+					fly();
+
+				} 
+
+			}
+
+			function fly() {
+
+				seagull.lookHelper.position.copy( seagull.mesh.position );
+
+				seagull.lookHelper.lookAt( seagull.sitPos.position );
+
+				seagull.flyingTime += 1;
+
+				if ( seagull.flyingTime < 240 ) {
+					
+					seagull.mesh.quaternion.rotateTowards( seagull.lookHelper.quaternion, 0.028 ); // 0.016
+
+				} else {
+
+					seagull.lookAwayTime += 1;
+
+					if ( seagull.lookAwayTime > 40 ) {
+
+						seagull.flyingTime = 0;
+
+					}
+
+				}
+
+				seagull.mesh.translateZ( 0.28 );
+
+				if ( seagull.mesh.position.y < seagull.sitPos.position.y ) {
+
+					seagull.mesh.position.y = seagull.sitPos.position.y;
+
+				}
+
+				// subtle move
+
+				seagull.main.position.y = Math.cos( growingRandom / 4 ) * 0.1;
+				seagull.main.rotation.z = Math.sin( growingRandom / 6 ) * 0.14;
+				seagull.main.rotation.y = Math.sin( growingRandom / 4 ) * 0.04;
+				seagull.tail.rotation.z = Math.cos( growingRandom / 6 ) * 0.1;
+				seagull.tail.rotation.x = Math.cos( growingRandom / 4 ) * 0.1;
+
+				seagull.wingLeftEnd.rotation.z = Math.sin( growingRandom / 10 ) * 0.04;
+				seagull.wingRightEnd.rotation.z = Math.sin( growingRandom / 10 ) * 0.04;
+
+				// move wings
+
+				if ( Math.random() < 0.01 && seagull.wingMove === false ) {
+
+					var random = Math.random();
+
+					if ( sounds.gull1.isPlaying === false && sounds.gull2.isPlaying === false ) {
+
+						if ( random < 0.5 ) {
+
+							sounds.gull2.play();
+
+						} else {
+
+							sounds.gull1.play();
+
+						}
+
+					}
+
+					seagull.wingMove = true;
+
+				}
+
+				var amplitude = 0.2;
+
+				if ( seagull.wingMove === true ) {
+
+					if ( seagull.wingTime < Math.PI * 2 ) {
+
+						if ( seagull.wingTime < Math.PI ) {
+
+							seagull.wingTime += 0.18;
+
+						} else {
+
+							seagull.wingTime += 0.18 * 1.1;
+							amplitude = 0.2 * 1.1;
+
+						}
+
+					} else {
+
+						seagull.wingTime = Math.PI * 2;
+
+					}
+
+					if ( seagull.wingTime < Math.PI * 2 ) {
+
+						seagull.wingRight.rotation.z -= Math.cos( seagull.wingTime ) * amplitude;
+						seagull.wingLeft.rotation.z += Math.cos( seagull.wingTime ) * amplitude;
+
+						seagull.wingRightEnd.rotation.z -= Math.cos( seagull.wingTime ) * amplitude;
+						seagull.wingLeftEnd.rotation.z += Math.cos( seagull.wingTime ) * amplitude;
+
+					} else {
+
+						seagull.wingRight.rotation.z = 0;
+						seagull.wingLeft.rotation.z = 0;
+
+						seagull.wingRightEnd.rotation.z = 0;
+						seagull.wingLeftEnd.rotation.z = 0;
+
+						seagull.wingMove = false;
+						seagull.wingTime = 0;
+
+					}
+
+				}
+
+			}
+
+			function sit() {
+
+				if ( seagull.sitTime < 1 ) {
+
+					seagull.sitTime += 0.06;
+
+					animSkeleton( seagull.sitTime );
+
+				} else {
+
+					seagull.sitTime = 1;
+
+					seagull.mesh.position.copy( seagull.sitPos.position );
+
+				}
+
+				if ( Math.random() < 0.001 ) {
+
+					var random = Math.random();
+
+					if ( random < 0.5 ) {
+
+						sounds.gull2.play();
+
+					} else {
+
+						sounds.gull1.play();
+
+					}
+
+				}
+
+			}
+
+			function wakeUp() {
+
+				if ( seagull.sitTime > 0 ) {
+
+					seagull.sitTime -= 0.1;
+
+					animSkeleton( seagull.sitTime );
+
+					seagull.wingMove = false;
+					seagull.wingTime = 0;
+
+				} else {
+
+					seagull.sitTime = 0;
+					seagull.state = "fly";
+
+				}
+
+			}
+
+			function animSkeleton( time ) {
+
+				// mesh
+
+				if ( seagull.state === "sit" ) {
+
+					seagull.mesh.position.x = THREE.Math.lerp( seagull.mesh.position.x, seagull.sitPos.position.x, time );
+					seagull.mesh.position.y = THREE.Math.lerp( seagull.mesh.position.y, seagull.sitPos.position.y, time );
+					seagull.mesh.position.z = THREE.Math.lerp( seagull.mesh.position.z, seagull.sitPos.position.z, time );
+
+				}
+
+				// head
+
+				seagull.head.rotation.x = THREE.Math.lerp( 0, THREE.Math.degToRad( 60 ), time );
+				seagull.head.position.y = THREE.Math.lerp( -0.229, 2, time );
+				seagull.head.position.z = THREE.Math.lerp( 1.519, 0.558, time );
+
+				// main bone
+
+				seagull.main.rotation.x = THREE.Math.lerp( 0, THREE.Math.degToRad( -68 ), time );
+
+				// tail
+
+				seagull.tail.rotation.x = THREE.Math.lerp( 0, THREE.Math.degToRad( 22 ), time );
+				seagull.tail.position.y = THREE.Math.lerp( 0.014, -1.57, time );
+				seagull.tail.position.z = THREE.Math.lerp( -2.703, 0.74, time );
+
+				// wingLeft
+
+				seagull.wingLeft.rotation.x = THREE.Math.lerp( 0, THREE.Math.degToRad( 118 ), time );
+				seagull.wingLeft.rotation.y = THREE.Math.lerp( 0, THREE.Math.degToRad( -1 ), time );
+				seagull.wingLeft.rotation.z = THREE.Math.lerp( 0, THREE.Math.degToRad( -98 ), time );
+
+				//seagull.wingLeft.position.x = THREE.Math.lerp( seagull.wingLeft.position.x, 1.356, time );
+				//seagull.wingLeft.position.y = THREE.Math.lerp( seagull.wingLeft.position.y, 0, time );
+				//seagull.wingLeft.position.z = THREE.Math.lerp( seagull.wingLeft.position.z, -0.037, time );
+
+				// wingLeftEnd
+
+				seagull.wingLeftEnd.rotation.x = THREE.Math.lerp( 0, THREE.Math.degToRad( -26 ), time );
+				seagull.wingLeftEnd.rotation.y = THREE.Math.lerp( 0, THREE.Math.degToRad( 3.65 ), time );
+				seagull.wingLeftEnd.rotation.z = THREE.Math.lerp( 0, THREE.Math.degToRad( -176 ), time );
+
+				seagull.wingLeftEnd.position.x = THREE.Math.lerp( 3.754, 11.6, time );
+				seagull.wingLeftEnd.position.y = THREE.Math.lerp( 0, 0.2, time );
+				seagull.wingLeftEnd.position.z = THREE.Math.lerp( -0.077, -0.55, time );
+
+				// wingRight
+
+				seagull.wingRight.rotation.x = THREE.Math.lerp( 0, THREE.Math.degToRad( 122 ), time );
+				seagull.wingRight.rotation.y = THREE.Math.lerp( 0, THREE.Math.degToRad( -5.40 ), time );
+				seagull.wingRight.rotation.z = THREE.Math.lerp( 0, THREE.Math.degToRad( 96 ), time );
+
+				//seagull.wingRight.position.x = THREE.Math.lerp( seagull.wingRight.position.x, -1.356, time );
+				//seagull.wingRight.position.y = THREE.Math.lerp( seagull.wingRight.position.y, -0.014, time );
+				//seagull.wingRight.position.z = THREE.Math.lerp( seagull.wingRight.position.z, -0.037, time );
+
+				// wingRightEnd
+
+				seagull.wingRightEnd.rotation.x = THREE.Math.lerp( 0, THREE.Math.degToRad( 4.65 ), time );
+				seagull.wingRightEnd.rotation.y = THREE.Math.lerp( 0, THREE.Math.degToRad( -4.46 ), time );
+				seagull.wingRightEnd.rotation.z = THREE.Math.lerp( 0, THREE.Math.degToRad( 178 ), time );
+
+				seagull.wingRightEnd.position.x = THREE.Math.lerp( -3.754, -11.22, time );
+
+			}
+
+			function raycastFloor() {
+
+				raycaster.setFromCamera( mouse, camera );
+
+				var intersect = raycaster.intersectObject( seagull.seaFloor );
+
+				if ( intersect.length != 0 && infosIsClicked === false ) {
+
+					moveBalise( intersect[0].point );
+
+				}
+
+				infosIsClicked = false;
+
+			}
+
+			function moveBalise( intersectPosition ) {
+
+				// move balise according to raycasted point
+
+				balise.mesh.position.copy( intersectPosition );
+
+				balise.water.position.set( balise.mesh.position.x, 0, balise.mesh.position.z );
+				balise.wave1.position.set( balise.mesh.position.x, -0.1, balise.mesh.position.z );
+				balise.wave2.position.set( balise.mesh.position.x, -0.1, balise.mesh.position.z );
+				seagull.seaFloor.position.copy( balise.water.position );
+
+				camera.userData.time = 1;
+
+				if ( sounds.balise.isPlaying === false ) {
+
+					sounds.balise.play();
+
+				} else {
+
+					sounds.balise.stop();
+					sounds.balise.play();
+
+				}
+
+				// random seagull sound
+
+				if ( Math.random() < 0.4 && sounds.gull2.isPlaying === false && sounds.gull1.isPlaying === false && seagull.state === "sit" ) {
+
+					var random = Math.random();
+
+					if ( random < 0.5 ) {
+
+						sounds.gull1.play();
+
+					} else {
+
+						sounds.gull2.play();
+
+					}
+
+				}
+
+				// change seagull state
+
+				seagull.state = "wakeup";
+
+			}
+
+			function updateBalise() {
+
+				// balise subtle move
+
+				balise.mesh.rotation.set( Math.cos( growingNumber / 20 + 0.5 ) / 10, Math.sin( growingNumber / 100 ), Math.sin( growingNumber / 20 ) / 10 );
+
+				balise.mesh.position.y = Math.cos( growingNumber / 16 ) / 6;
+
+				seagull.sitPos.position.copy( balise.mesh.position );
+				seagull.sitPos.rotation.copy( balise.mesh.rotation );
+				seagull.sitPos.translateY( 7.12 );
+
+				// circular waves
+
+				balise.wave1.scale.x += 0.002;
+				balise.wave1.scale.z += 0.002;
+
+				if ( balise.wave1.scale.x > 1 ) {
+
+					balise.wave1.scale.x = 0.2;
+					balise.wave1.scale.z = 0.2;
+
+				}
+
+				balise.wave1.material.opacity = THREE.Math.lerp( 1.48, 0, balise.wave1.scale.x );
+
+				balise.wave2.scale.x += 0.002;
+				balise.wave2.scale.z += 0.002;
+
+				if ( balise.wave2.scale.x > 1 ) {
+
+					balise.wave2.scale.x = 0.2;
+					balise.wave2.scale.z = 0.2;
+
+				}
+
+				balise.wave2.material.opacity = THREE.Math.lerp( 1.48, 0, balise.wave2.scale.x );
+
+			}
+
+			function updateSunWaves() {
+
+				for ( var i = 0; i < balise.sunWaves.length; i++ ) {
+
+					balise.sunWaves[i].time += 0.008;
+
+					if ( balise.sunWaves[i].time > 1 ) {
+
+						balise.sunWaves[i].position.x = balise.mesh.position.x + Math.cos( THREE.Math.randFloat( 0, Math.PI * 2 ) ) * 20;
+						balise.sunWaves[i].position.z = balise.mesh.position.z + Math.sin( THREE.Math.randFloat( 0, Math.PI * 2 ) ) * 20;
+
+						balise.sunWaves[i].time = 0;
+
+						var randomScale = THREE.Math.randFloat( 0.2, 1 );
+
+						balise.sunWaves[i].scale.set( randomScale, randomScale, randomScale );
+
+					}
+
+				}
+
+			}
+
+			function updateCamera() {
+
+				if ( camera.userData.time > 0 ) {
+
+					camera.userData.time -= 0.0002;
+
+					camera.position.x = THREE.Math.lerp( balise.mesh.position.x + 50, camera.position.x, camera.userData.time );
+					camera.position.z = THREE.Math.lerp( balise.mesh.position.z + 50, camera.position.z, camera.userData.time );
+
+				}
+
+				camera.position.y = 72;
+
+			}
+
+			function updateScene() {
+
+				if ( sceneIsready === true ) {
+
+					checkSeagullState();
+					updateBalise();
+					updateSunWaves();
+					updateCamera();
+
+				}
+
+				growingRandom += Math.random();
+				growingNumber += 1;
+
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+				render();
+
+			}
+
+			function animate() {
+				
+				updateScene();
+
+				requestAnimationFrame( animate );
+
+				render();
+
+			}
+
+			function render() {
+
+				renderer.clear();
+				renderer.render( scene, camera );
+
+			}
+
+		</script>
+	</body>
+</html>
