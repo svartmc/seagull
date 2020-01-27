@@ -118,7 +118,7 @@
 
 			}
 
-			balise = new Object();
+			buoy = new Object();
 
 			// check if WebGL available
 
@@ -311,28 +311,28 @@
 
 				});
 
-				// balise
+				// buoy
 
-				var baliseMaterial = new THREE.MeshStandardMaterial( { roughness: 0.6, metalness: 0.4 } );
-				baliseMaterial.color.setHex( 0xec3d35 ).convertSRGBToLinear();
+				var buoyMaterial = new THREE.MeshStandardMaterial( { roughness: 0.6, metalness: 0.4 } );
+				buoyMaterial.color.setHex( 0xec3d35 ).convertSRGBToLinear();
 
-				loader.load( "assets/balise.fbx", function ( object ) {
+				loader.load( "assets/buoy.fbx", function ( object ) {
 					
 					object.traverse( function ( child ) {
 
 						if ( child.isMesh ) {
 
-							child.material = baliseMaterial;
+							child.material = buoyMaterial;
 
 						}
 
 					} );
 
-					balise.mesh = object;
+					buoy.mesh = object;
 
-					balise.mesh.scale.set( 0.02, 0.02, 0.02 );
+					buoy.mesh.scale.set( 0.02, 0.02, 0.02 );
 
-					scene.add( balise.mesh );
+					scene.add( buoy.mesh );
 
 				});
 
@@ -340,7 +340,7 @@
 
 			function createWaters() {
 
-				// balise circular waves
+				// buoy circular waves
 
 				var geometry = new THREE.RingGeometry( 4, 4.8, 24, 1 );
 				geometry.rotateX( -Math.PI/2 );
@@ -351,24 +351,24 @@
 				var wave2Material = new THREE.MeshBasicMaterial( { color: 0xffffff, transparent: true, opacity: 0 } );
 				wave2Material.color.setHex( 0xffffff ).convertSRGBToLinear();
 
-				balise.wave1 = new THREE.Mesh( geometry, wave1Material );
-				balise.wave1.position.y = -0.1;
-				scene.add( balise.wave1 );
+				buoy.wave1 = new THREE.Mesh( geometry, wave1Material );
+				buoy.wave1.position.y = -0.1;
+				scene.add( buoy.wave1 );
 
-				balise.wave2 = new THREE.Mesh( geometry, wave2Material );
-				balise.wave2.position.y = -0.1;
-				balise.wave2.scale.x = 0.5;
-				balise.wave2.scale.z = 0.5;
-				scene.add( balise.wave2 );
+				buoy.wave2 = new THREE.Mesh( geometry, wave2Material );
+				buoy.wave2.position.y = -0.1;
+				buoy.wave2.scale.x = 0.5;
+				buoy.wave2.scale.z = 0.5;
+				scene.add( buoy.wave2 );
 
-				// transparent water around balise
+				// transparent water around buoy
 
 				var geometry = new THREE.PlaneGeometry( 10, 10 );
 				geometry.rotateX( -Math.PI/2 );
 				var material = new THREE.MeshBasicMaterial( { color: 0x1781a4, transparent: true, opacity: 0.6 } );
 				material.color.setHex( 0x1781a4 ).convertSRGBToLinear();
-				balise.water = new THREE.Mesh( geometry, material );
-				scene.add( balise.water );
+				buoy.water = new THREE.Mesh( geometry, material );
+				scene.add( buoy.water );
 
 				// huge sea floor to raycast
 
@@ -380,7 +380,7 @@
 
 				// sun waves
 
-				balise.sunWaves = [];
+				buoy.sunWaves = [];
 
 				var numberOfWaves = 12;
 
@@ -410,7 +410,7 @@
 
 					wave.time = Math.random();
 
-					balise.sunWaves.push( wave );
+					buoy.sunWaves.push( wave );
 
 					scene.add( wave );
 
@@ -425,7 +425,7 @@
 				sounds.gull1 = new THREE.Audio( sounds.listener );
 				sounds.gull2 = new THREE.Audio( sounds.listener );
 
-				sounds.balise = new THREE.Audio( sounds.listener );
+				sounds.buoy = new THREE.Audio( sounds.listener );
 
 				var audioLoader = new THREE.AudioLoader();
 
@@ -452,10 +452,10 @@
 
 				});
 
-				audioLoader.load( 'sounds/balise.mp3', function( buffer ) {
+				audioLoader.load( 'sounds/buoy.mp3', function( buffer ) {
 
-					sounds.balise.setBuffer( buffer );
-					sounds.balise.setVolume( 0.32 );
+					sounds.buoy.setBuffer( buffer );
+					sounds.buoy.setVolume( 0.32 );
 
 				});
 
@@ -743,7 +743,7 @@
 
 				if ( intersect.length != 0 && infosIsClicked === false ) {
 
-					moveBalise( intersect[0].point );
+					moveBuoy( intersect[0].point );
 
 				}
 
@@ -751,27 +751,27 @@
 
 			}
 
-			function moveBalise( intersectPosition ) {
+			function moveBuoy( intersectPosition ) {
 
-				// move balise according to raycasted point
+				// move buoy according to raycasted point
 
-				balise.mesh.position.copy( intersectPosition );
+				buoy.mesh.position.copy( intersectPosition );
 
-				balise.water.position.set( balise.mesh.position.x, 0, balise.mesh.position.z );
-				balise.wave1.position.set( balise.mesh.position.x, -0.1, balise.mesh.position.z );
-				balise.wave2.position.set( balise.mesh.position.x, -0.1, balise.mesh.position.z );
-				seagull.seaFloor.position.copy( balise.water.position );
+				buoy.water.position.set( buoy.mesh.position.x, 0, buoy.mesh.position.z );
+				buoy.wave1.position.set( buoy.mesh.position.x, -0.1, buoy.mesh.position.z );
+				buoy.wave2.position.set( buoy.mesh.position.x, -0.1, buoy.mesh.position.z );
+				seagull.seaFloor.position.copy( buoy.water.position );
 
 				camera.userData.time = 1;
 
-				if ( sounds.balise.isPlaying === false ) {
+				if ( sounds.buoy.isPlaying === false ) {
 
-					sounds.balise.play();
+					sounds.buoy.play();
 
 				} else {
 
-					sounds.balise.stop();
-					sounds.balise.play();
+					sounds.buoy.stop();
+					sounds.buoy.play();
 
 				}
 
@@ -799,62 +799,62 @@
 
 			}
 
-			function updateBalise() {
+			function updateBuoy() {
 
-				// balise subtle move
+				// buoy subtle move
 
-				balise.mesh.rotation.set( Math.cos( growingNumber / 20 + 0.5 ) / 10, Math.sin( growingNumber / 100 ), Math.sin( growingNumber / 20 ) / 10 );
+				buoy.mesh.rotation.set( Math.cos( growingNumber / 20 + 0.5 ) / 10, Math.sin( growingNumber / 100 ), Math.sin( growingNumber / 20 ) / 10 );
 
-				balise.mesh.position.y = Math.cos( growingNumber / 16 ) / 6;
+				buoy.mesh.position.y = Math.cos( growingNumber / 16 ) / 6;
 
-				seagull.sitPos.position.copy( balise.mesh.position );
-				seagull.sitPos.rotation.copy( balise.mesh.rotation );
+				seagull.sitPos.position.copy( buoy.mesh.position );
+				seagull.sitPos.rotation.copy( buoy.mesh.rotation );
 				seagull.sitPos.translateY( 7.12 );
 
 				// circular waves
 
-				balise.wave1.scale.x += 0.002;
-				balise.wave1.scale.z += 0.002;
+				buoy.wave1.scale.x += 0.002;
+				buoy.wave1.scale.z += 0.002;
 
-				if ( balise.wave1.scale.x > 1 ) {
+				if ( buoy.wave1.scale.x > 1 ) {
 
-					balise.wave1.scale.x = 0.2;
-					balise.wave1.scale.z = 0.2;
-
-				}
-
-				balise.wave1.material.opacity = THREE.Math.lerp( 1.48, 0, balise.wave1.scale.x );
-
-				balise.wave2.scale.x += 0.002;
-				balise.wave2.scale.z += 0.002;
-
-				if ( balise.wave2.scale.x > 1 ) {
-
-					balise.wave2.scale.x = 0.2;
-					balise.wave2.scale.z = 0.2;
+					buoy.wave1.scale.x = 0.2;
+					buoy.wave1.scale.z = 0.2;
 
 				}
 
-				balise.wave2.material.opacity = THREE.Math.lerp( 1.48, 0, balise.wave2.scale.x );
+				buoy.wave1.material.opacity = THREE.Math.lerp( 1.48, 0, buoy.wave1.scale.x );
+
+				buoy.wave2.scale.x += 0.002;
+				buoy.wave2.scale.z += 0.002;
+
+				if ( buoy.wave2.scale.x > 1 ) {
+
+					buoy.wave2.scale.x = 0.2;
+					buoy.wave2.scale.z = 0.2;
+
+				}
+
+				buoy.wave2.material.opacity = THREE.Math.lerp( 1.48, 0, buoy.wave2.scale.x );
 
 			}
 
 			function updateSunWaves() {
 
-				for ( var i = 0; i < balise.sunWaves.length; i++ ) {
+				for ( var i = 0; i < buoy.sunWaves.length; i++ ) {
 
-					balise.sunWaves[i].time += 0.008;
+					buoy.sunWaves[i].time += 0.008;
 
-					if ( balise.sunWaves[i].time > 1 ) {
+					if ( buoy.sunWaves[i].time > 1 ) {
 
-						balise.sunWaves[i].position.x = balise.mesh.position.x + Math.cos( THREE.Math.randFloat( 0, Math.PI * 2 ) ) * 20;
-						balise.sunWaves[i].position.z = balise.mesh.position.z + Math.sin( THREE.Math.randFloat( 0, Math.PI * 2 ) ) * 20;
+						buoy.sunWaves[i].position.x = buoy.mesh.position.x + Math.cos( THREE.Math.randFloat( 0, Math.PI * 2 ) ) * 20;
+						buoy.sunWaves[i].position.z = buoy.mesh.position.z + Math.sin( THREE.Math.randFloat( 0, Math.PI * 2 ) ) * 20;
 
-						balise.sunWaves[i].time = 0;
+						buoy.sunWaves[i].time = 0;
 
 						var randomScale = THREE.Math.randFloat( 0.2, 1 );
 
-						balise.sunWaves[i].scale.set( randomScale, randomScale, randomScale );
+						buoy.sunWaves[i].scale.set( randomScale, randomScale, randomScale );
 
 					}
 
@@ -868,8 +868,8 @@
 
 					camera.userData.time -= 0.0002;
 
-					camera.position.x = THREE.Math.lerp( balise.mesh.position.x + 50, camera.position.x, camera.userData.time );
-					camera.position.z = THREE.Math.lerp( balise.mesh.position.z + 50, camera.position.z, camera.userData.time );
+					camera.position.x = THREE.Math.lerp( buoy.mesh.position.x + 50, camera.position.x, camera.userData.time );
+					camera.position.z = THREE.Math.lerp( buoy.mesh.position.z + 50, camera.position.z, camera.userData.time );
 
 				}
 
@@ -882,7 +882,7 @@
 				if ( sceneIsready === true ) {
 
 					checkSeagullState();
-					updateBalise();
+					updateBuoy();
 					updateSunWaves();
 					updateCamera();
 
