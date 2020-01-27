@@ -1,4 +1,6 @@
 <p align="center"><img alt="seagull gif" src="http://arnaudsvart.com/wp-content/uploads/2020/01/seagull.gif"></p>
+![Farmers Market Finder Demo](assets/demo.gif)
+https://github.com/svartmc/seagull/blob/master/assets/demo.gif
 
 Procedural animation of a low poly seagull using Three.js.
 She flies until she reaches the top of the beacon, then goes into a “sit” state which starts the animation.
