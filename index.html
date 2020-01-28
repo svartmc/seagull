@@ -517,6 +517,7 @@
 					if ( seagull.lookAwayTime > 40 ) {
 
 						seagull.flyingTime = 0;
+						seagull.lookAwayTime = 0;
 
 					}
 
@@ -573,12 +574,12 @@
 
 						if ( seagull.wingTime < Math.PI ) {
 
-							seagull.wingTime += 0.18;
+							seagull.wingTime += 0.16;
 
 						} else {
 
-							seagull.wingTime += 0.18 * 1.1;
-							amplitude = 0.2 * 1.1;
+							seagull.wingTime += 0.16 * 1.1;
+							amplitude = 0.2 * 1; // 1.1
 
 						}
 
